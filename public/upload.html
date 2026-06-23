@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Upload Contacts — MediNeti Outreach</title>
+    <link rel="stylesheet" href="/css/main.css">
+</head>
+
+<body>
+
+<div class="page-card">
+
+    <div class="page-header">
+        <h1>MediNeti Outreach Portal</h1>
+        <p>Hospital Contact Import System</p>
+    </div>
+
+    <div class="page-content">
+
+        <a href="/" class="back-link">← Back to Dashboard</a>
+
+        <div class="info-box">
+            <h3>Required Columns</h3>
+
+            <pre>
+hname
+email
+hcos_id
+            </pre>
+        </div>
+
+        <form id="upload-form" method="POST" action="/upload-contacts" enctype="multipart/form-data">
+
+            <input
+                type="file"
+                name="contacts"
+                id="contacts-file"
+                accept=".xlsx,.xls,.csv"
+                required
+            >
+            <span id="file-error" style="color:#dc2626;font-size:0.9rem;display:block;margin-top:6px;"></span>
+
+            <button type="submit" class="btn-primary">
+                Upload Contacts
+            </button>
+
+        </form>
+
+        <section id="upload-results" hidden></section>
+
+    </div>
+
+</div>
+
+<div id="loading-overlay" hidden aria-hidden="true">
+  <div class="spinner"></div>
+  <p id="loading-message"></p>
+</div>
+<script>
+(function () {
+    const authToken = localStorage.getItem('mn_token');
+    if (!authToken) {
+        return window.location.replace('/login');
+    }
+
+    const uploadForm = document.getElementById('upload-form');
+    const fileInput = document.getElementById('contacts-file');
+    const fileError = document.getElementById('file-error');
+    const submitBtn = document.querySelector('button[type=submit]');
+    const overlay = document.getElementById('loading-overlay');
+    const loadingMessage = document.getElementById('loading-message');
+    const resultsSection = document.getElementById('upload-results');
+
+    function showLoading(message) {
+        loadingMessage.textContent = message;
+        overlay.removeAttribute('hidden');
+        overlay.setAttribute('aria-hidden', 'false');
+    }
+
+    function hideLoading() {
+        overlay.setAttribute('hidden', '');
+        overlay.setAttribute('aria-hidden', 'true');
+    }
+
+    function resetUploadState() {
+        submitBtn.disabled = false;
+        hideLoading();
+    }
+
+    function escapeHtml(value) {
+        return String(value || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+    }
+
+    function renderResults(result) {
+        const inserted = result.inserted || [];
+        const alreadyExists = result.alreadyExists || [];
+        const skipped = result.skipped || [];
+
+        uploadForm.style.display = 'none';
+        resultsSection.hidden = false;
+        resultsSection.innerHTML = `
+            <div class="info-box">
+                <h3>Upload Results</h3>
+                <p><strong>Inserted:</strong> ${inserted.length}</p>
+                <p><strong>Already exists:</strong> ${alreadyExists.length}</p>
+                <p><strong>Skipped:</strong> ${skipped.length}</p>
+            </div>
+            ${inserted.length ? `<div class="table-wrapper"><h4>Inserted records</h4><table class="data-table"><thead><tr><th>HCOS ID</th><th>Hospital Name</th><th>Email</th></tr></thead><tbody>${inserted.map(row => `<tr><td>${escapeHtml(row.hcos_id)}</td><td>${escapeHtml(row.hname)}</td><td>${escapeHtml(row.email)}</td></tr>`).join('')}</tbody></table></div>` : ''}
+            ${alreadyExists.length ? `<div class="table-wrapper"><h4>Already exists</h4><table class="data-table"><thead><tr><th>HCOS ID</th><th>Hospital Name</th></tr></thead><tbody>${alreadyExists.map(row => `<tr><td>${escapeHtml(row.hcos_id)}</td><td>${escapeHtml(row.hname)}</td></tr>`).join('')}</tbody></table></div>` : ''}
+            ${skipped.length ? `<div class="table-wrapper"><h4>Skipped rows</h4><table class="data-table"><thead><tr><th>HCOS ID</th><th>Hospital Name</th><th>Reason</th></tr></thead><tbody>${skipped.map(row => `<tr><td>${escapeHtml(row.hcos_id)}</td><td>${escapeHtml(row.hname)}</td><td>${escapeHtml(row.reason)}</td></tr>`).join('')}</tbody></table></div>` : ''}
+        `;
+    }
+
+    uploadForm.addEventListener('submit', async function (e) {
+        e.preventDefault();
+
+        if (!fileInput.files.length) {
+            fileError.textContent = 'Please select a file before uploading.';
+            return;
+        }
+
+        fileError.textContent = '';
+        submitBtn.disabled = true;
+        showLoading('Uploading and processing contacts… please wait.');
+
+        try {
+            const formData = new FormData(uploadForm);
+
+            const res = await fetch('/upload-contacts', {
+                method: 'POST',
+                headers: {
+                    'Authorization': 'Bearer ' + authToken,
+                },
+                body: formData,
+            });
+
+            const data = await res.json();
+
+            if (res.status === 401) {
+                localStorage.removeItem('mn_token');
+                window.location.replace('/login');
+                return;
+            }
+
+            if (!res.ok) {
+                resetUploadState();
+                fileError.textContent = data.error || 'Upload failed. Please check your file and try again.';
+                console.error('Upload failed:', res.status, data);
+                return;
+            }
+
+            hideLoading();
+            renderResults(data);
+        } catch (err) {
+            resetUploadState();
+            fileError.textContent = 'Upload failed. Please check your connection and try again.';
+            console.error('Upload error:', err);
+        }
+    });
+})();
+</script>
+
+</body>
+</html>

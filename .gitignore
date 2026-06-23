@@ -1,0 +1,33 @@
+# Node.js dependencies
+node_modules/
+
+# Local environment variables
+.env
+
+# Build outputs
+dist/
+build/
+
+# Log files
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Uploaded files and temp data
+uploads/
+
+# Test output
+test-output.txt
+
+# VS Code settings
+.vscode/
+
+# Misc caches
+*.log
+*.tmp
+*.temp

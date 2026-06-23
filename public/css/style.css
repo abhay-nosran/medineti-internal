@@ -1,0 +1,55 @@
+*{
+    margin:0;
+    padding:0;
+    box-sizing:border-box;
+}
+
+body{
+    min-height:100vh;
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    background:#f5f7fa;
+    font-family:Arial,sans-serif;
+}
+
+.card{
+    width:700px;
+    background:white;
+    border-radius:16px;
+    overflow:hidden;
+    box-shadow:0 10px 30px rgba(0,0,0,.1);
+}
+
+.header{
+    background:#0f766e;
+    color:white;
+    padding:30px;
+    text-align:center;
+}
+
+.content{
+    padding:30px;
+}
+
+.info-box{
+    background:#f8fafc;
+    padding:15px;
+    border-radius:8px;
+    margin-bottom:20px;
+}
+
+input[type=file]{
+    width:100%;
+    margin-bottom:20px;
+}
+
+button{
+    width:100%;
+    padding:15px;
+    border:none;
+    background:#0f766e;
+    color:white;
+    border-radius:8px;
+    cursor:pointer;
+}

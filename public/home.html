@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MediNeti Outreach System</title>
+    <link rel="stylesheet" href="/css/main.css">
+    <style>
+        .page-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+        .header-text h1 { font-size: 1.8rem; font-weight: 700; line-height: 1.2; }
+        .header-text p  { opacity: 0.85; margin-top: 4px; font-size: 0.95rem; }
+        .btn-logout {
+            background: rgba(255,255,255,0.15);
+            color: #ffffff;
+            border: 1px solid rgba(255,255,255,0.4);
+            border-radius: 8px;
+            padding: 8px 18px;
+            font-size: 0.875rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.15s ease;
+            white-space: nowrap;
+        }
+        .btn-logout:hover { background: rgba(255,255,255,0.28); }
+    </style>
+</head>
+<body>
+
+<div class="page-card">
+
+    <div class="page-header">
+        <div class="header-text">
+            <h1>MediNeti Outreach System</h1>
+            <p>NABH Renewal Campaign Management Portal</p>
+        </div>
+        <button class="btn-logout" id="logout-btn">Sign Out</button>
+    </div>
+
+    <div class="page-content">
+
+        <span class="badge-warning">Internal Use Only</span>
+
+        <div class="warning-box">
+            <h3>⚠ Internal MediNeti Tool</h3>
+            <p>
+                This application is intended exclusively for MediNeti Healthcare Solutions team members.
+                It is used for importing hospital contact databases and sending NABH renewal outreach emails.
+            </p>
+        </div>
+
+        <div class="action-cards">
+
+            <div class="action-card">
+                <h3>📤 Upload Contacts</h3>
+                <p>
+                    Upload hospital contact records using an Excel (.xlsx/.xls)
+                    or CSV file. Records will be validated and inserted into the database.
+                </p>
+                <button class="btn-primary" data-href="/upload">
+                    Open Upload Portal
+                </button>
+            </div>
+
+            <div class="action-card">
+                <h3>📧 Send Email Campaign</h3>
+                <p>
+                    Send NABH renewal outreach emails to all contacts where
+                    <strong>already_sent = FALSE</strong>.
+                </p>
+                <button class="btn-primary" data-href="/send" data-loading-message="Sending campaign emails… please wait.">
+                    Start Campaign
+                </button>
+            </div>
+
+            <div class="action-card">
+                <h3>🧪 Test Email</h3>
+                <p>
+                    Send a test email using the contact configured with
+                    <strong>hcos_id = 0</strong>.
+                </p>
+                <button class="btn-primary" data-href="/test-send" data-loading-message="Sending test email… please wait.">
+                    Send Test Email
+                </button>
+            </div>
+
+        </div>
+
+    </div>
+
+    <div class="page-footer">
+        MediNeti Healthcare Solutions • Outreach Management System
+    </div>
+
+</div>
+
+<div id="loading-overlay" hidden aria-hidden="true">
+    <div class="spinner"></div>
+    <p id="loading-message"></p>
+</div>
+
+<script>
+(function () {
+    // ── Auth guard ────────────────────────────────────────────────────────────
+    // Wrapped in an IIFE so `token` is never a global — prevents redeclaration
+    // errors if any dynamically-loaded script also declares a `token` variable.
+    const token = localStorage.getItem('mn_token');
+    if (!token) {
+        window.location.replace('/login');
+        return; // stop executing the rest of the script
+    }
+
+    // ── Logout ────────────────────────────────────────────────────────────────
+    document.getElementById('logout-btn').addEventListener('click', function () {
+        localStorage.removeItem('mn_token');
+        window.location.replace('/login');
+    });
+
+    // ── Loading overlay helper ────────────────────────────────────────────────
+    function showLoading(msg) {
+        document.getElementById('loading-message').textContent = msg || 'Please wait…';
+        var overlay = document.getElementById('loading-overlay');
+        overlay.removeAttribute('hidden');
+        overlay.setAttribute('aria-hidden', 'false');
+    }
+
+    function hideLoading() {
+        var overlay = document.getElementById('loading-overlay');
+        overlay.setAttribute('hidden', '');
+        overlay.setAttribute('aria-hidden', 'true');
+    }
+
+    // ── Authenticated page navigation ─────────────────────────────────────────
+    document.querySelectorAll('[data-href]').forEach(function (btn) {
+        btn.addEventListener('click', async function () {
+            const href = btn.dataset.href;
+            const loadingMsg = btn.dataset.loadingMessage;
+
+            // Pages without a loading message (e.g. /upload) are normal navigations.
+            // The destination page handles its own auth guard via localStorage.
+            // Using document.write() here would destroy the current document context,
+            // break event listeners, and cause form submissions to fall back to native
+            // GET behaviour — which is the bug we are fixing.
+            if (!loadingMsg) {
+                window.location.href = href;
+                return;
+            }
+
+            // Routes with a loading message (/send, /test-send) trigger long-running
+            // server operations. Fetch with the Authorization header, then store the
+            // result HTML in sessionStorage and navigate to a dedicated result page
+            // so the back button and URL bar work correctly.
+            showLoading(loadingMsg);
+
+            try {
+                const res = await fetch(href, {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': 'Bearer ' + token,
+                        'Accept': 'text/html',
+                    },
+                });
+
+                if (res.status === 401) {
+                    localStorage.removeItem('mn_token');
+                    window.location.replace('/login');
+                    return;
+                }
+
+                const html = await res.text();
+
+                // Inject the result into a full-screen iframe using srcdoc.
+                // This keeps the blob:// problem from occurring — the iframe
+                // inherits the parent's origin so /css/main.css loads correctly.
+                const frame = document.createElement('iframe');
+                frame.setAttribute('srcdoc', html);
+                frame.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;border:none;z-index:9999;background:#fff;';
+                frame.title = 'Result';
+                document.body.appendChild(frame);
+                hideLoading();
+
+            } catch (err) {
+                hideLoading();
+                alert('Request failed. Please check your connection and try again.');
+            }
+        });
+    });
+})();
+</script>
+
+</body>
+</html>
