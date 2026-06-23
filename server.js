@@ -816,6 +816,88 @@ app.post("/upload-contacts",
         }
 );
 
+// ── GET /reset — serve reset page ────────────────────────────────────────────
+app.get("/reset", (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'reset.html'));
+});
+
+// ── GET /reset-preview?days=N ─────────────────────────────────────────────────
+// Returns { count } — how many rows would be affected by the reset.
+app.get("/reset-preview", requireAuth, async (req, res) => {
+    const days = parseInt(req.query.days, 10);
+
+    if (!days || days < 1 || days > 3650) {
+        return res.status(400).json({
+            success: false,
+            error: 'days must be a number between 1 and 3650.',
+        });
+    }
+
+    try {
+        const result = await pool.query(
+            `SELECT
+               COUNT(*) FILTER (
+                 WHERE already_sent = TRUE
+                   AND sent_at < NOW() - ($1 * INTERVAL '1 day')
+               )::int AS count,
+               COUNT(*) FILTER (
+                 WHERE already_sent = TRUE
+               )::int AS total_sent
+             FROM contacts`,
+            [days]
+        );
+
+        const row = result.rows[0];
+        return res.json({
+            success:    true,
+            count:      row.count,
+            total_sent: row.total_sent,
+            days,
+        });
+    } catch (err) {
+        if (isDbConnectionError(err)) {
+            return res.status(503).json({ success: false, error: 'Database connection error.' });
+        }
+        console.error('reset-preview error:', err.message);
+        return res.status(500).json({ success: false, error: err.message });
+    }
+});
+
+// ── POST /reset-sent ──────────────────────────────────────────────────────────
+// Body: { days: number }
+// Resets already_sent = FALSE for contacts whose sent_at is older than N days.
+app.post("/reset-sent", requireAuth, async (req, res) => {
+    const days = parseInt(req.body?.days, 10);
+
+    if (!days || days < 1 || days > 3650) {
+        return res.status(400).json({
+            success: false,
+            error: 'days must be a number between 1 and 3650.',
+        });
+    }
+
+    try {
+        const result = await pool.query(
+            `UPDATE contacts
+             SET already_sent = FALSE
+             WHERE already_sent = TRUE
+               AND sent_at < NOW() - ($1 * INTERVAL '1 day')`,
+            [days]
+        );
+
+        const updated = result.rowCount ?? 0;
+        console.log(`reset-sent: ${updated} rows reset (older than ${days} days) by ${req.admin?.username}`);
+
+        return res.json({ success: true, updated, days });
+    } catch (err) {
+        if (isDbConnectionError(err)) {
+            return res.status(503).json({ success: false, error: 'Database connection error.' });
+        }
+        console.error('reset-sent error:', err.message);
+        return res.status(500).json({ success: false, error: err.message });
+    }
+});
+
 // cron.schedule("*/30 * * * *", async () => {
 //   console.log("Running email campaign...");
 //   await sendPendingEmails();

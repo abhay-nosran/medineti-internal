@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reset Sent Status — MediNeti Outreach</title>
+    <link rel="stylesheet" href="/css/main.css">
+    <style>
+        .reset-form {
+            max-width: 480px;
+        }
+        .days-input-row {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin: 20px 0 8px;
+        }
+        .days-input-row label {
+            font-weight: 600;
+            font-size: 0.9rem;
+            color: var(--text-primary, #0f172a);
+            white-space: nowrap;
+        }
+        .days-input {
+            width: 110px;
+            padding: 10px 14px;
+            border: 1.5px solid var(--border, #e2e8f0);
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 700;
+            color: var(--text-primary, #0f172a);
+            background: var(--surface-2, #f8fafc);
+            outline: none;
+            transition: border-color 0.15s ease;
+        }
+        .days-input:focus {
+            border-color: var(--brand-teal, #0d9488);
+            background: #fff;
+        }
+        .days-hint {
+            font-size: 0.82rem;
+            color: var(--text-muted, #94a3b8);
+            margin-bottom: 16px;
+        }
+        .preview-box {
+            display: none;
+            margin: 20px 0;
+        }
+        .preview-box.visible {
+            display: block;
+        }
+        .count-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: #fef3c7;
+            color: #92400e;
+            border: 1px solid #fde68a;
+            border-radius: 10px;
+            padding: 12px 20px;
+            font-size: 1rem;
+            font-weight: 700;
+            margin-bottom: 16px;
+        }
+        .count-badge.zero {
+            background: #f0fdf4;
+            color: #166534;
+            border-color: #bbf7d0;
+        }
+        .action-row {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+            margin-top: 8px;
+        }
+        .btn-danger {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: #dc2626;
+            color: #ffffff;
+            border: none;
+            border-radius: 8px;
+            padding: 11px 22px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: filter 0.15s ease, transform 0.15s ease;
+        }
+        .btn-danger:hover {
+            filter: brightness(1.1);
+            transform: translateY(-1px);
+        }
+        .btn-danger:disabled,
+        .btn-primary:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+        .result-box {
+            display: none;
+            margin-top: 20px;
+        }
+        .result-box.visible {
+            display: block;
+        }
+        #field-error {
+            color: #dc2626;
+            font-size: 0.85rem;
+            min-height: 20px;
+            margin-bottom: 4px;
+        }
+    </style>
+</head>
+<body>
+
+<div class="page-card">
+
+    <div class="page-header">
+        <h1>MediNeti Outreach Portal</h1>
+        <p>Hospital Contact Import System</p>
+    </div>
+
+    <div class="page-content">
+
+        <a href="/" class="back-link">← Back to Dashboard</a>
+
+        <h2>Reset Email Sent Status</h2>
+
+        <div class="info-box">
+            <p>
+                Contacts whose email was sent <strong>more than X days ago</strong> will have
+                <code>already_sent</code> reset to <code>FALSE</code>, making them eligible
+                for the next campaign run.
+            </p>
+        </div>
+
+        <div class="reset-form">
+
+            <div class="days-input-row">
+                <label for="days-input">Older than</label>
+                <input
+                    type="number"
+                    id="days-input"
+                    class="days-input"
+                    min="1"
+                    max="3650"
+                    value="30"
+                    placeholder="30"
+                >
+                <span style="font-weight:600;color:var(--text-secondary,#475569);">days</span>
+            </div>
+            <p class="days-hint">
+                Contacts with <code>sent_at &lt; NOW() - INTERVAL '&lt;X&gt; days'</code> will be reset.
+            </p>
+
+            <span id="field-error"></span>
+
+            <button id="preview-btn" class="btn-primary">
+                Preview Impact
+            </button>
+
+            <!-- Preview result -->
+            <div id="preview-box" class="preview-box">
+                <div id="count-badge" class="count-badge">
+                    <span id="count-text">0 contacts will be reset</span>
+                </div>
+
+                <p id="preview-detail" style="font-size:0.88rem;color:var(--text-secondary,#475569);margin-bottom:16px;"></p>
+
+                <div id="confirm-section" class="action-row" hidden>
+                    <button id="confirm-btn" class="btn-danger">
+                        ⚠ Confirm Reset
+                    </button>
+                    <button id="cancel-btn" class="btn-secondary">
+                        Cancel
+                    </button>
+                </div>
+            </div>
+
+            <!-- Final result -->
+            <div id="result-box" class="result-box">
+                <div class="info-box" style="border-left-color:#16a34a;background:#f0fdf4;color:#166534;">
+                    <strong>✓ Reset complete.</strong>
+                    <span id="result-text"></span>
+                </div>
+                <a href="/" class="back-link" style="margin-top:16px;display:inline-flex;">← Back to Dashboard</a>
+            </div>
+
+        </div>
+
+    </div>
+
+    <div class="page-footer">
+        MediNeti Healthcare Solutions • Outreach Management System
+    </div>
+
+</div>
+
+<div id="loading-overlay" hidden aria-hidden="true">
+    <div class="spinner"></div>
+    <p id="loading-message"></p>
+</div>
+
+<script>
+(function () {
+    const authToken = localStorage.getItem('mn_token');
+    if (!authToken) {
+        return window.location.replace('/login');
+    }
+
+    const daysInput    = document.getElementById('days-input');
+    const previewBtn   = document.getElementById('preview-btn');
+    const previewBox   = document.getElementById('preview-box');
+    const countBadge   = document.getElementById('count-badge');
+    const countText    = document.getElementById('count-text');
+    const previewDetail = document.getElementById('preview-detail');
+    const confirmSection = document.getElementById('confirm-section');
+    const confirmBtn   = document.getElementById('confirm-btn');
+    const cancelBtn    = document.getElementById('cancel-btn');
+    const resultBox    = document.getElementById('result-box');
+    const resultText   = document.getElementById('result-text');
+    const fieldError   = document.getElementById('field-error');
+    const overlay      = document.getElementById('loading-overlay');
+    const loadingMsg   = document.getElementById('loading-message');
+
+    function showLoading(msg) {
+        loadingMsg.textContent = msg;
+        overlay.removeAttribute('hidden');
+        overlay.setAttribute('aria-hidden', 'false');
+    }
+
+    function hideLoading() {
+        overlay.setAttribute('hidden', '');
+        overlay.setAttribute('aria-hidden', 'true');
+    }
+
+    function resetUI() {
+        previewBox.classList.remove('visible');
+        confirmSection.setAttribute('hidden', '');
+        resultBox.classList.remove('visible');
+        fieldError.textContent = '';
+    }
+
+    function getDays() {
+        const v = parseInt(daysInput.value, 10);
+        return isNaN(v) ? null : v;
+    }
+
+    // ── Preview ────────────────────────────────────────────────────────────────
+    previewBtn.addEventListener('click', async function () {
+        resetUI();
+
+        const days = getDays();
+        if (!days || days < 1) {
+            fieldError.textContent = 'Please enter a valid number of days (minimum 1).';
+            return;
+        }
+
+        previewBtn.disabled = true;
+        showLoading('Counting affected records…');
+
+        try {
+            const res = await fetch(`/reset-preview?days=${encodeURIComponent(days)}`, {
+                headers: { 'Authorization': 'Bearer ' + authToken },
+            });
+
+            hideLoading();
+
+            if (res.status === 401) {
+                localStorage.removeItem('mn_token');
+                window.location.replace('/login');
+                return;
+            }
+
+            const data = await res.json();
+
+            if (!res.ok) {
+                fieldError.textContent = data.error || 'Preview failed. Please try again.';
+                previewBtn.disabled = false;
+                return;
+            }
+
+            const count = data.count;
+            const totalSent = data.total_sent;
+            countText.textContent = `${count} contact${count !== 1 ? 's' : ''} will be reset`;
+            countBadge.className = count === 0 ? 'count-badge zero' : 'count-badge';
+
+            let detail = count === 0
+                ? `No contacts have sent_at older than ${days} day${days !== 1 ? 's' : ''} ago.`
+                : `These ${count} of ${totalSent} sent contact${count !== 1 ? 's' : ''} had emails sent more than ${days} day${days !== 1 ? 's' : ''} ago and will be made eligible for the next campaign.`;
+
+            previewDetail.textContent = detail;
+
+            previewBox.classList.add('visible');
+
+            if (count > 0) {
+                confirmSection.removeAttribute('hidden');
+            }
+
+        } catch (err) {
+            hideLoading();
+            fieldError.textContent = 'Request failed. Please check your connection.';
+            console.error(err);
+        } finally {
+            previewBtn.disabled = false;
+        }
+    });
+
+    // ── Cancel ─────────────────────────────────────────────────────────────────
+    cancelBtn.addEventListener('click', function () {
+        previewBox.classList.remove('visible');
+        confirmSection.setAttribute('hidden', '');
+    });
+
+    // ── Confirm reset ──────────────────────────────────────────────────────────
+    confirmBtn.addEventListener('click', async function () {
+        const days = getDays();
+        if (!days || days < 1) return;
+
+        confirmBtn.disabled = true;
+        cancelBtn.disabled  = true;
+        showLoading('Resetting sent status…');
+
+        try {
+            const res = await fetch('/reset-sent', {
+                method: 'POST',
+                headers: {
+                    'Authorization': 'Bearer ' + authToken,
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ days }),
+            });
+
+            hideLoading();
+
+            if (res.status === 401) {
+                localStorage.removeItem('mn_token');
+                window.location.replace('/login');
+                return;
+            }
+
+            const data = await res.json();
+
+            if (!res.ok) {
+                fieldError.textContent = data.error || 'Reset failed. Please try again.';
+                confirmBtn.disabled = false;
+                cancelBtn.disabled  = false;
+                return;
+            }
+
+            // Hide form, show success
+            previewBox.classList.remove('visible');
+            resultText.textContent = ` ${data.updated} contact${data.updated !== 1 ? 's' : ''} reset successfully.`;
+            resultBox.classList.add('visible');
+
+        } catch (err) {
+            hideLoading();
+            fieldError.textContent = 'Request failed. Please check your connection.';
+            confirmBtn.disabled = false;
+            cancelBtn.disabled  = false;
+            console.error(err);
+        }
+    });
+
+    // Re-run preview if user changes the days value after a preview
+    daysInput.addEventListener('input', function () {
+        previewBox.classList.remove('visible');
+        confirmSection.setAttribute('hidden', '');
+        resultBox.classList.remove('visible');
+        fieldError.textContent = '';
+    });
+})();
+</script>
+
+</body>
+</html>
