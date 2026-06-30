@@ -1,0 +1,229 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manual Email Sender — MediNeti Outreach</title>
+
+    <link rel="stylesheet" href="/css/main.css">
+
+    <style>
+        input{
+            width:100%;
+            padding:12px;
+            margin-top:8px;
+            margin-bottom:18px;
+            border:1px solid #d1d5db;
+            border-radius:8px;
+            font-size:15px;
+            box-sizing:border-box;
+        }
+    </style>
+
+</head>
+
+<body>
+
+<div class="page-card">
+
+    <div class="page-header">
+        <h1>MediNeti Outreach Portal</h1>
+        <p>Send Individual NABH Outreach Email</p>
+    </div>
+
+    <div class="page-content">
+
+        <a href="/" class="back-link">
+            ← Back to Dashboard
+        </a>
+
+        <div class="info-box">
+            <h3>Manual Email Sender</h3>
+
+            <p>
+                Enter the hospital name and recipient email address.
+                The standard MediNeti NABH outreach email will be sent.
+            </p>
+        </div>
+
+        <form id="manual-email-form">
+
+            <label>Hospital Name</label>
+
+            <input
+                type="text"
+                id="hospitalName"
+                required
+            >
+
+            <label>Email Address</label>
+
+            <input
+                type="email"
+                id="email"
+                required
+            >
+
+            <button
+                type="submit"
+                class="btn-primary"
+            >
+                Send Email
+            </button>
+
+        </form>
+
+    </div>
+
+</div>
+
+<div id="loading-overlay" hidden aria-hidden="true">
+    <div class="spinner"></div>
+    <p id="loading-message"></p>
+</div>
+
+<script>
+
+(function () {
+
+    // ───────────────────────────────────────────────────────
+    // Authentication
+    // ───────────────────────────────────────────────────────
+
+    const authToken = localStorage.getItem("mn_token");
+
+    if (!authToken) {
+        window.location.replace("/login");
+        return;
+    }
+
+    // ───────────────────────────────────────────────────────
+    // Elements
+    // ───────────────────────────────────────────────────────
+
+    const form = document.getElementById("manual-email-form");
+
+    const overlay = document.getElementById("loading-overlay");
+
+    const loadingMessage =
+        document.getElementById("loading-message");
+
+    // ───────────────────────────────────────────────────────
+    // Loading
+    // ───────────────────────────────────────────────────────
+
+    function showLoading(message){
+
+        loadingMessage.textContent = message;
+
+        overlay.removeAttribute("hidden");
+
+        overlay.setAttribute(
+            "aria-hidden",
+            "false"
+        );
+    }
+
+    function hideLoading(){
+
+        overlay.setAttribute(
+            "hidden",
+            ""
+        );
+
+        overlay.setAttribute(
+            "aria-hidden",
+            "true"
+        );
+
+    }
+
+    // ───────────────────────────────────────────────────────
+    // Submit
+    // ───────────────────────────────────────────────────────
+
+    form.addEventListener("submit", async function(e){
+
+        e.preventDefault();
+
+        showLoading(
+            "Sending email... Please wait."
+        );
+
+        try{
+
+            const response = await fetch(
+                "/manual-send",
+                {
+
+                    method:"POST",
+
+                    headers:{
+
+                        "Authorization":
+                            "Bearer " + authToken,
+
+                        "Content-Type":
+                            "application/json",
+
+                        "Accept":
+                            "text/html"
+
+                    },
+
+                    body:JSON.stringify({
+
+                        hospitalName:
+                            document.getElementById("hospitalName").value.trim(),
+
+                        email:
+                            document.getElementById("email").value.trim()
+
+                    })
+
+                }
+            );
+
+            hideLoading();
+
+            if(response.status === 401){
+
+                localStorage.removeItem("mn_token");
+
+                window.location.replace("/login");
+
+                return;
+
+            }
+
+            const html = await response.text();
+
+            // Replace the current page with the HTML
+            // returned by Express.
+            document.open();
+            document.write(html);
+            document.close();
+
+        }
+        catch(err){
+
+            hideLoading();
+
+            alert(
+                "Failed to send email. Please try again."
+            );
+
+            console.error(err);
+
+        }
+
+    });
+
+})();
+
+</script>
+
+</body>
+</html>
+

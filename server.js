@@ -22,6 +22,7 @@ const upload = multer({
 });
 app.use(express.static(path.join(__dirname, "public")));
 app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
 const pool = new Pool({
     connectionString: process.env.DATABASE_URL,
@@ -86,13 +87,13 @@ function isDbConnectionError(err) {
 }
 
 function buildEmailHtml(hospitalName) {
-    return `
+  return `
 <!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>NABH Renewal Support</title>
+<title>MediNeti Solutions</title>
 </head>
 
 <body style="margin:0;padding:0;background-color:#f5f7fa;font-family:Arial,Helvetica,sans-serif;">
@@ -107,7 +108,7 @@ function buildEmailHtml(hospitalName) {
 <td>
 <img
 src="https://resend-attachments.s3.amazonaws.com/0fc2b339-ad74-41c5-8f9a-575c50da7958"
-alt="MediNeti"
+alt="MediNeti Solutions"
 width="600"
 style="display:block;width:100%;height:auto;">
 </td>
@@ -118,43 +119,74 @@ style="display:block;width:100%;height:auto;">
 
 <p>Dear Sir/Madam,</p>
 
-<p>Greetings from <strong>MediNeti Healthcare Solutions</strong>.</p>
+<p>Greetings from <strong>MediNeti Solutions</strong>.</p>
+
+<p>I hope this email finds you well.</p>
 
 <p>
-I am <strong>Abhay Nosran</strong> from MediNeti.
-While reviewing NABH-accredited healthcare organizations,
-we noticed that <strong>${hospitalName}</strong>'s NABH accreditation
-is approaching its renewal period.
+My name is <strong>Abhay Nosran</strong>, Business Development Manager at
+<strong>MediNeti Solutions</strong>.
+We specialize in providing end-to-end healthcare quality consulting services,
+enabling hospitals to achieve regulatory compliance, strengthen operational
+excellence, and expand their healthcare network through strategic empanelments.
 </p>
 
-<p>MediNeti supports hospitals with:</p>
+<p>
+While reviewing NABH-accredited healthcare organizations, we came across
+<strong>${hospitalName}</strong>. We believe there may be opportunities to
+support your team in strengthening quality systems, accreditation readiness,
+and healthcare empanelments.
+</p>
 
-<ul>
-<li>NABH Gap Assessments</li>
-<li>Documentation & SOP Development</li>
-<li>Internal Audits & Mock Assessments</li>
-<li>Staff Training</li>
-<li>Compliance & Quality Monitoring</li>
-<li>End-to-End NABH Renewal Support</li>
+<p><strong>Our comprehensive range of services includes:</strong></p>
+
+<ul style="padding-left:20px;line-height:1.8;">
+<li>NABH Accreditation (Entry Level & Full Accreditation)</li>
+<li>NABH Renewal & Surveillance Assessment Support</li>
+<li>NABH Gap Analysis & Readiness Assessment</li>
+<li>Documentation, SOP Development & Policy Formulation</li>
+<li>Internal Audits, Mock Assessments & CAPA Implementation</li>
+<li>Staff Training & Quality Management Programs</li>
+<li>QCI Quality Compliance & Implementation Support</li>
+<li>CGHS Empanelment Assistance</li>
+<li>ECHS Empanelment Assistance</li>
+<li>AB-PMJAY (Ayushman Bharat) Empanelment Support</li>
+<li>Private Insurance & TPA Empanelment</li>
+<li>PSU, Corporate & Government Organization Empanelment</li>
 </ul>
 
 <p>
-We would be happy to offer a complimentary NABH Readiness Assessment
-to help identify any gaps before renewal.
+At MediNeti, we work closely with healthcare organizations to streamline
+quality processes, ensure compliance with statutory and accreditation
+standards, and support sustainable operational improvements.
 </p>
 
 <p>
-If this is relevant to your team, I would appreciate
-the opportunity for a brief 15-minute discussion.
+As part of our initial engagement, we would be pleased to offer a
+<strong>complimentary preliminary assessment</strong> of
+<strong>${hospitalName}</strong> to evaluate the current level of preparedness
+and identify opportunities for improvement in accreditation, quality
+management, and empanelment.
 </p>
 
-<p>Looking forward to hearing from you.</p>
+<p>
+We would appreciate the opportunity to connect with you for a brief
+<strong>15–20 minute discussion</strong> at your convenience to understand your
+requirements and explore how MediNeti Solutions can support your organization.
+</p>
 
 <p>
-Warm Regards,<br>
+Thank you for your time and consideration. We look forward to the possibility
+of partnering with your esteemed hospital and contributing to its continued
+growth and excellence.
+</p>
+
+<p>
+Warm Regards,<br><br>
+
 <strong>Abhay Nosran</strong><br>
 Business Development Manager<br>
-MediNeti Healthcare Solutions
+MediNeti Solutions
 </p>
 
 <p>
@@ -169,25 +201,25 @@ MediNeti Healthcare Solutions
 <td style="background:#0f172a;padding:25px;text-align:center;">
 
 <p style="color:#ffffff;font-weight:bold;margin:0;">
-MediNeti Healthcare Solutions
+MediNeti Solutions
 </p>
 
-<p>
+<p style="margin:10px 0;">
 <a href="https://www.medineti.com"
 style="color:#5eead4;text-decoration:none;">
 www.medineti.com
 </a>
 </p>
 
-<p>
+<p style="margin:10px 0;">
 <a href="mailto:info@medineti.com"
 style="color:#5eead4;text-decoration:none;">
 info@medineti.com
 </a>
 </p>
 
-<p style="font-size:12px;color:#94a3b8;">
-Healthcare Quality • NABH Accreditation • Compliance Excellence
+<p style="font-size:12px;color:#94a3b8;margin-top:15px;">
+Healthcare Quality • NABH Accreditation • Compliance • Hospital Empanelments
 </p>
 
 </td>
@@ -902,6 +934,128 @@ app.post("/reset-sent", requireAuth, async (req, res) => {
 //   console.log("Running email campaign...");
 //   await sendPendingEmails();
 // });
+
+// ================================
+// Manual Email Form
+// ================================
+
+app.get("/manual-send", (req, res) => {
+
+    res.sendFile(path.join(__dirname,'public','manualSend.html'));
+});
+
+
+// ================================
+// Send Individual Email
+// ================================
+
+app.post("/manual-send", requireAuth, async (req, res) => {
+
+    const { hospitalName, email } = req.body;
+
+    if (!hospitalName || !email) {
+
+        return res.status(400).send(
+            errorPage(
+                "Invalid Request",
+                "Hospital name and email are required.",
+                { statusCode: 400 }
+            )
+        );
+    }
+
+    try {
+
+        const response = await resend.emails.send({
+
+            from:
+            "MediNeti Healthcare Solutions <noreply@contact.medineti.com>",
+
+            replyTo:
+            "abhay@medineti.com",
+
+            to: email,
+
+            subject:
+            `NABH Renewal Support for ${hospitalName}`,
+
+            html:
+            buildEmailHtml(hospitalName),
+        });
+
+        res.send(`
+<!DOCTYPE html>
+<html>
+<head>
+<title>Email Sent</title>
+
+<style>
+body{
+    font-family:Arial;
+    background:#f5f7fa;
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    height:100vh;
+}
+
+.card{
+    background:white;
+    padding:35px;
+    border-radius:10px;
+    width:500px;
+    box-shadow:0 5px 20px rgba(0,0,0,.08);
+}
+
+.success{
+    color:#16a34a;
+    font-size:22px;
+    margin-bottom:20px;
+}
+</style>
+
+</head>
+
+<body>
+
+<div class="card">
+
+<div class="success">
+✓ Email Sent Successfully
+</div>
+
+<p><strong>Hospital:</strong> ${escapeHtml(hospitalName)}</p>
+
+<p><strong>Email:</strong> ${escapeHtml(email)}</p>
+
+<p><strong>Resend ID:</strong> ${escapeHtml(response.data?.id || "N/A")}</p>
+
+<br>
+
+<a href="/manual-send">
+Send Another Email
+</a>
+
+</div>
+
+</body>
+
+</html>
+`);
+
+    } catch (err) {
+
+        res.status(500).send(
+            errorPage(
+                "Email Sending Failed",
+                err.message,
+                {
+                    stack: err.stack
+                }
+            )
+        );
+    }
+});
 
 app.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);
